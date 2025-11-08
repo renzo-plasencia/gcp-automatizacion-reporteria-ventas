@@ -131,6 +131,30 @@ GROUP BY ID_CLIENTE
 ---
 # Configuración y código
 ## Configuración Cloud Function
+``` python
+# Requirements.txt
+functions-framework==3.*
+pandas
+google-cloud-bigquery
+google-cloud-storage
+db-dtypes
+```
+- HTTP Allowed
+- Necesita autenticación (IAM)
+
+## Configuración de la cuenta de servicio
+Se crea una cuenta de servicio con los siguientes permisos:
+``` cli
+ROLE: roles/bigquery.dataViewer
+
+ROLE: roles/bigquery.user
+
+ROLE: roles/iam.serviceAccountTokenCreator
+
+ROLE: roles/run.invoker
+
+ROLE: roles/storage.objectAdmin
+```
 
 ## Código Cloud Function
 ``` python
@@ -196,12 +220,20 @@ def main(request):
     return f"⚠️ Se terminó la carga de los archivos. gs://{bucket_name}/{folder}"
 ```
 
-## Configuración IAM
+## Configuración del Scheduler
+Es nesario crear un scheduler y darle acceso a la cuenta de servicio creada. 
+
+``` bash
+0 7 * * * # Para programarlo todos los días a las 7am.
+```
 
 ## Imágenes del resultado Final
 
+1. Scheduler programado para ejecutar todos los días.
 
-Configuracion de IAM ...
-Basada en solicitudes
-0 instancias (no es importante una respuesta rapida), asi que puede arrancar en frio?
+2. ETL correctamente implementada en un Cloud Function.
+
+3. Reportes creados en el bucket objetivo.
+
+
 
