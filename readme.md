@@ -1,19 +1,19 @@
 # Proyecto: Automatización de KPIs
 ## **Contexto:** 
 
-Actualmente en una empresa financiera se genera reportería diaria sobre nivel de ventas, ventas diarias, concentración geográfica de ventas y clientes a quienes más se le ha vendido en los últimos 3 meses.
+Actualmente el equipo comercial de una empresa financiera 🏦 genera reportes diarios sobre nivel de ventas, ventas diarias, concentración geográfica de ventas y clientes a quienes más se le ha vendido en los últimos 3 meses.
 
-Esta información es consumida por diferentes áreas y múltiples analistas. Estos ejecutan diariamente un conjunto de querys para obtener la información.
+Esta información es consumida por diferentes analistas. Estos ejecutan diariamente un conjunto de querys para obtener la información.
 
 La principal problemática está en que no se cuenta con un histórico de KPIs organizado (una carpeta con todos los archivos de forma histórica); además, se sigue corriendo de forma manual desde BigQuery.
 
 ## **Solución**
 
-La solución planteada es crear un proceso en *Cloud Function* y *(para programar la generación automática)* que permita generar de forma automática y programada los reportes en una ruta pre definida y a una hora dada.
+La solución planteada es crear un proceso en *Cloud Function* con *Cloud Scheduler* que permita generar de forma automática y programada los reportes en una ruta pre definida y a una hora específica.
 
 ## Arquitectura Cloud
 
-AQUI VA LA IMAGEN DE LA INFRAESTRUCTURA
+
 
 ---
 ***Nota:** Es un caso simulado, la información es dummy. Se busca demostrar el uso de Cloud Function principalmente.*
