@@ -86,7 +86,7 @@ Subir información a BigQuery
 ```Python
 from google.cloud import bigquery
 
-project_id = "proyecto-ventas-diarias"
+project_id = "proyecto-ejemplo-kpi"
 dataset_id = "ventas"
 table_id   = "ventas-diarias"
 
@@ -106,24 +106,24 @@ Son querys básicas que nos permitirán obtener la información para construir K
 
 ``` SQL
 -- Ventas mensuales (precio unitario * cantidad)
-SELECT Periodo, SUM(cantidad_vendida * precio_unitario) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias`
+SELECT Periodo, SUM(cantidad_vendida * precio_unitario) as precio_total FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias`
 group by periodo;
 
 -- Ventas diarias acumuladas
-SELECT fecha_factura_sin_hora, SUM(cantidad_vendida * precio_unitario) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias`
+SELECT fecha_factura_sin_hora, SUM(cantidad_vendida * precio_unitario) as precio_total FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias`
 group by fecha_factura_sin_hora;
 
 -- Top 3 países con más ventas en el último periodo
-SELECT pais_cliente,round(SUM(cantidad_vendida * precio_unitario),2) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias` 
-WHERE Periodo = (SELECT MAX(periodo) FROM `proyecto-ventas-diarias.ventas.ventas-diarias`) and cantidad_vendida > 0
+SELECT pais_cliente,round(SUM(cantidad_vendida * precio_unitario),2) as precio_total FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias` 
+WHERE Periodo = (SELECT MAX(periodo) FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias`) and cantidad_vendida > 0
 GROUP BY pais_cliente;
 
 -- Cliente con compras superiores a 1000 en el último periodo
 WITH CTE_VENTAS_X_CLIENTE AS (
-  SELECT periodo,id_cliente, round(SUM(cantidad_vendida * precio_unitario),2) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias` 
+  SELECT periodo,id_cliente, round(SUM(cantidad_vendida * precio_unitario),2) as precio_total FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias` 
   group by periodo,id_cliente 
 ) SELECT ID_CLIENTE,ROUND(SUM(PRECIO_TOTAL),2) FROM CTE_VENTAS_X_CLIENTE
-WHERE PERIODO = (SELECT MAX(periodo) FROM `proyecto-ventas-diarias.ventas.ventas-diarias`) and precio_total > 1000
+WHERE PERIODO = (SELECT MAX(periodo) FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias`) and precio_total > 1000
 GROUP BY ID_CLIENTE
 ;
 ```
@@ -166,12 +166,12 @@ from datetime import datetime
 @functions_framework.http
 def main(request):    
     # Nombre de la tabla SQL
-    project_id = "proyecto-ventas-diarias"
+    project_id = "proyecto-ejemplo-kpi"
     dataset_id = "ventas"
     table_id   = "ventas-diarias"
 
     # Nombre del bucket
-    bucket_name = "ventas-diarias-bucket"
+    bucket_name = "kpi-bucket-demo"
     folder = "reporte-diario-ventas"
 
     # Crear cliente bigquery y storage
@@ -179,23 +179,23 @@ def main(request):
     storage_client = storage.Client()
 
     query_1 = """
-    SELECT Periodo, SUM(cantidad_vendida * precio_unitario) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias` group by periodo;
+    SELECT Periodo, SUM(cantidad_vendida * precio_unitario) as precio_total FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias` group by periodo;
     """
 
     query_2 = """
-    SELECT fecha_factura_sin_hora, SUM(cantidad_vendida * precio_unitario) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias` group by fecha_factura_sin_hora;
+    SELECT fecha_factura_sin_hora, SUM(cantidad_vendida * precio_unitario) as precio_total FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias` group by fecha_factura_sin_hora;
     """
 
     query_3 = """
-    SELECT pais_cliente,round(SUM(cantidad_vendida * precio_unitario),2) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias` WHERE Periodo = (SELECT MAX(periodo) FROM `proyecto-ventas-diarias.ventas.ventas-diarias`) and cantidad_vendida > 0 GROUP BY pais_cliente;
+    SELECT pais_cliente,round(SUM(cantidad_vendida * precio_unitario),2) as precio_total FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias` WHERE Periodo = (SELECT MAX(periodo) FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias`) and cantidad_vendida > 0 GROUP BY pais_cliente;
     """
 
     query_4 = """
     WITH CTE_VENTAS_X_CLIENTE AS (
-    SELECT periodo,id_cliente, round(SUM(cantidad_vendida * precio_unitario),2) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias` 
+    SELECT periodo,id_cliente, round(SUM(cantidad_vendida * precio_unitario),2) as precio_total FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias` 
     group by periodo,id_cliente 
     ) SELECT ID_CLIENTE,ROUND(SUM(PRECIO_TOTAL),2) FROM CTE_VENTAS_X_CLIENTE
-    WHERE PERIODO = (SELECT MAX(periodo) FROM `proyecto-ventas-diarias.ventas.ventas-diarias`) and precio_total > 1000
+    WHERE PERIODO = (SELECT MAX(periodo) FROM `proyecto-ejemplo-kpi.ventas.ventas-diarias`) and precio_total > 1000
     GROUP BY ID_CLIENTE
     ;
     """
@@ -230,10 +230,13 @@ Es nesario crear un scheduler y darle acceso a la cuenta de servicio creada.
 ## Imágenes del resultado Final
 
 1. Scheduler programado para ejecutar todos los días.
+![Scheduler_Foto](https://github.com/user-attachments/assets/cc8b6382-655c-4783-b390-d560d5213008)
 
 2. ETL correctamente implementada en un Cloud Function.
+![Function_Foto](https://github.com/user-attachments/assets/3ad72578-4d20-4d5e-bd23-87cc7fc39ea8)
 
 3. Reportes creados en el bucket objetivo.
+![Bucket_Foto](https://github.com/user-attachments/assets/fa56e2e7-1dae-46ec-a5b0-cd82b1437b2f)
 
 
 
