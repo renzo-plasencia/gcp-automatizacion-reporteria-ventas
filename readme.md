@@ -13,7 +13,7 @@ La solución planteada es crear un proceso en *Cloud Function* con *Cloud Schedu
 
 ## Arquitectura Cloud
 
-
+![Frame 2](https://github.com/user-attachments/assets/47428d5b-a758-4a18-b9a2-2c944657ff10)
 
 ---
 ***Nota:** Es un caso simulado, la información es dummy. Se busca demostrar el uso de Cloud Function principalmente.*
