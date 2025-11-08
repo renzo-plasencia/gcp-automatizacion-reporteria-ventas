@@ -1,21 +1,27 @@
 # Proyecto: Automatización de KPIs
-Contexto: actualmente en una empresa se genera reportería diaria sobre KPIs de ventas (ventas acumuludas ...), como esta información es consumida por varias áreas puede que múltiples analistas la ejecuten a lo largo del día (reproceso) y que no se tenga claro y organizado un histórico.
+## **Contexto:** 
 
-Con este proyecto se busca automatizar la ejecución y obtención de información de los KPIs (consultas en SQL), dejarlos en un ruta y a una hora definida. Esto permitirá evitar reprocesos y se tendrá un lugar donde revisar el avance diario.
+Actualmente en una empresa financiera se genera reportería diaria sobre nivel de ventas, ventas diarias, concentración geográfica de ventas y clientes a quienes más se le ha vendido en los últimos 3 meses.
 
-**Nota:** Es un caso hipotético, la información obtenida es dummy. Busco principalmente poner en práctica mis conocimiento sobre.... Sin embargo, la arquitectura planteada aquí se podría llevar a la práctica sin ningún problema.
+Esta información es consumida por diferentes áreas y múltiples analistas. Estos ejecutan diariamente un conjunto de querys para obtener la información.
 
-El objetivo de este pequeño proyecto es consumir información de bases de datos (Big Query) y diariamente colocar esa información en Excels (dashboard) en un ruta.
+La principal problemática está en que no se cuenta con un histórico de KPIs organizado (una carpeta con todos los archivos de forma histórica); además, se sigue corriendo de forma manual desde BigQuery.
 
-Con este proyecto espero demostrar mis conocimientos sobre VM, Images, IAM (falta), Bigquery básico, buckets? (almacenamiento), cloud function?
+## **Solución**
 
-Si quieres replicar mi proceso para obtener la información
+La solución planteada es crear un proceso en *Cloud Function* y *(para programar la generación automática)* que permita generar de forma automática y programada los reportes en una ruta pre definida y a una hora dada.
+
+## Arquitectura Cloud
+
+AQUI VA LA IMAGEN DE LA INFRAESTRUCTURA
+
+---
+***Nota:** Es un caso simulado, la información es dummy. Se busca demostrar el uso de Cloud Function principalmente.*
 
 # Obtener fuente de datos
+Si quieren obtener la fuente de datos con la que realicé el ejercicio lo pueden obtener desde Kaggle.
 
 ## Descargar información
-
-En esta parte enseño como obtener la información de Kaggle, usaré esta información como ejemplo. No es data del caso real.
 
 Descargar el **dataset** desde Kaggle.
 ```powershell
@@ -34,10 +40,10 @@ Prepara la subida de información como dataset principal. Se subirá en GCP.
 !pip install --upgrade google-cloud-bigquery pandas pyarrow
 
 from google.colab import auth
-auth.authenticate_user()  # Abre el popup de login
+auth.authenticate_user()
 print("✅ Autenticado correctamente")
 ```
-Código para procesar la información
+Código para procesar y limpiar la información
 
 ```Python
 import pandas as pd
@@ -93,10 +99,11 @@ job.result()
 print(f"✅ Datos cargados correctamente en {table_ref}")
 ```
 
-Con esto tendrás disponible la fuente de datos que use. No es necesario y de hecho se esperaría que usen las fuentes de datos originales.
+Con esto tendrás disponible la fuente de datos que use.
 
 # Querys para generación de reportería (KPI)
-Son querys de ejemplos de posibles KPIs según la información presente.
+Son querys básicas que nos permitirán obtener la información para construir KPI de ventas básicos.
+
 ``` SQL
 -- Ventas mensuales (precio unitario * cantidad)
 SELECT Periodo, SUM(cantidad_vendida * precio_unitario) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias`
@@ -121,11 +128,80 @@ GROUP BY ID_CLIENTE
 ;
 ```
 
-# Arquitectura en la nube
-El objetivo es prender una VM con una image pre-configurada con la versión de python y librerías necesarias para obtener la información de bigquery diariamente.
-pasos:
-- prender la VM con la imagen
-- traer la data y descargarlo en un Excel
-- cargar ese excel en un bucket
+---
+# Configuración y código
+## Configuración Cloud Function
 
-La otra opción es hacerlo con una cloud function...
+## Código Cloud Function
+``` python
+import functions_framework
+import pandas as pd
+from google.cloud import bigquery,storage
+from datetime import datetime
+
+@functions_framework.http
+def main(request):    
+    # Nombre de la tabla SQL
+    project_id = "proyecto-ventas-diarias"
+    dataset_id = "ventas"
+    table_id   = "ventas-diarias"
+
+    # Nombre del bucket
+    bucket_name = "ventas-diarias-bucket"
+    folder = "reporte-diario-ventas"
+
+    # Crear cliente bigquery y storage
+    bq_client = bigquery.Client(project=project_id)
+    storage_client = storage.Client()
+
+    query_1 = """
+    SELECT Periodo, SUM(cantidad_vendida * precio_unitario) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias` group by periodo;
+    """
+
+    query_2 = """
+    SELECT fecha_factura_sin_hora, SUM(cantidad_vendida * precio_unitario) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias` group by fecha_factura_sin_hora;
+    """
+
+    query_3 = """
+    SELECT pais_cliente,round(SUM(cantidad_vendida * precio_unitario),2) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias` WHERE Periodo = (SELECT MAX(periodo) FROM `proyecto-ventas-diarias.ventas.ventas-diarias`) and cantidad_vendida > 0 GROUP BY pais_cliente;
+    """
+
+    query_4 = """
+    WITH CTE_VENTAS_X_CLIENTE AS (
+    SELECT periodo,id_cliente, round(SUM(cantidad_vendida * precio_unitario),2) as precio_total FROM `proyecto-ventas-diarias.ventas.ventas-diarias` 
+    group by periodo,id_cliente 
+    ) SELECT ID_CLIENTE,ROUND(SUM(PRECIO_TOTAL),2) FROM CTE_VENTAS_X_CLIENTE
+    WHERE PERIODO = (SELECT MAX(periodo) FROM `proyecto-ventas-diarias.ventas.ventas-diarias`) and precio_total > 1000
+    GROUP BY ID_CLIENTE
+    ;
+    """
+
+    df = bq_client.query(query_1).to_dataframe()
+    df_2 = bq_client.query(query_2).to_dataframe()
+    df_3 = bq_client.query(query_3).to_dataframe()
+    df_4 = bq_client.query(query_4).to_dataframe()
+
+    dataframes = [df,df_2,df_3,df_4]
+
+    fecha_actual = datetime.now().strftime('%Y%m%d')
+    bucket = storage_client.bucket(bucket_name)
+
+    for i,dfx in enumerate(dataframes,start=1):
+        file_name = f"REPORTE_{i}_KPI_{fecha_actual}.csv"
+        blob = bucket.blob(f"{folder}/{file_name}")
+        blob.upload_from_string(dfx.to_csv(index=False, sep=";"), content_type="text/csv")
+
+        print(f"✅ Archivo subido: gs://{bucket_name}/{folder}/{file_name}")
+    
+    return f"⚠️ Se terminó la carga de los archivos. gs://{bucket_name}/{folder}"
+```
+
+## Configuración IAM
+
+## Imágenes del resultado Final
+
+
+Configuracion de IAM ...
+Basada en solicitudes
+0 instancias (no es importante una respuesta rapida), asi que puede arrancar en frio?
+
